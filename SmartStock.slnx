@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SmartStock.API/SmartStock.API.csproj" />
+  <Project Path="SmartStock.Application/SmartStock.Application.csproj" />
+  <Project Path="SmartStock.Domain/SmartStock.Domain.csproj" />
+  <Project Path="SmartStock.Infrastructure/SmartStock.Infrastructure.csproj" />
+  <Project Path="SmartStock.Tests/SmartStock.Tests.csproj" />
+</Solution>

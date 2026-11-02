@@ -1,0 +1,22 @@
+# .NET build files
+bin/
+obj/
+
+# IDE files
+.vs/
+.vscode/
+
+# Local secrets and environment files
+.env
+.env.*
+**/appsettings.Development.json
+**/secrets.json
+
+# Local database backups
+*.backup
+*.dump
+*.bak
+
+# User-specific Visual Studio settings
+*.csproj.user
+*.suo
