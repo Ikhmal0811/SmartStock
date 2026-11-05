@@ -100,6 +100,11 @@ namespace SmartStock.Infrastructure.Data
             {
                 entity.ToTable("products");
 
+                entity.ToTable(t =>
+                    t.HasCheckConstraint(
+                        "CK_products_stock_on_hand_nonnegative",
+                        "stock_on_hand >= 0"));
+
                 entity.HasKey(e => e.ProductId);
 
                 entity.Property(e => e.ProductId)
@@ -140,7 +145,8 @@ namespace SmartStock.Infrastructure.Data
                       .HasPrecision(12, 3);
 
                 entity.Property(e => e.CreatedAt)
-                      .HasColumnName("created_at");
+                      .HasColumnName("created_at")
+                      .HasColumnType("timestamp without time zone");
 
                 entity.HasOne<Category>()
                       .WithMany()
@@ -302,9 +308,9 @@ namespace SmartStock.Infrastructure.Data
                       .HasPrecision(12, 3);
 
                 entity.Property(e => e.CreatedAt)
-                      .HasColumnName("created_at")
-                      .HasColumnType("timestamp without time zone")
-                      .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                  .HasColumnName("created_at")
+                  .HasColumnType("timestamp with time zone")
+                  .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.HasOne<Product>()
                       .WithMany()

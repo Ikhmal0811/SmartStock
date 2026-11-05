@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using SmartStock.Application.DTOs;
 using SmartStock.Domain.Entities;
 using SmartStock.Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace SmartStock.API.Controllers
 {
@@ -18,13 +20,18 @@ namespace SmartStock.API.Controllers
             _context = context;
         }
 
-
+        [Authorize(Roles = "Admin,Staff")]
         [HttpPost("stock-in")]
         public async Task<IActionResult> StockIn([FromBody] StockInDto dto)
         {
             // Validate quantity
             if (dto.Quantity <= 0)
                 return BadRequest("Quantity must be greater than zero.");
+
+            if (dto.ProductId <= 0)
+            {
+                return BadRequest("Product ID must be greater than zero.");
+            }
 
             // Validate optional supplier
             if (dto.SupplierId.HasValue)
@@ -34,6 +41,13 @@ namespace SmartStock.API.Controllers
 
                 if (!supplierExists)
                     return BadRequest("Invalid supplier ID.");
+
+                if (dto.SupplierId.Value <= 0)
+                {
+                    return BadRequest("Supplier ID must be greater than zero.");
+                }
+
+                
             }
 
             // Begin transaction
@@ -52,6 +66,11 @@ namespace SmartStock.API.Controllers
             // Increase inventory
             product.StockOnHand += dto.Quantity;
 
+            if (product.StockOnHand + dto.Quantity > 999999999.999m)
+            {
+                return BadRequest("Stock quantity exceeds the maximum allowed value.");
+            }
+
             // Record stock movement
             var movement = new StockMovement
             {
@@ -59,7 +78,7 @@ namespace SmartStock.API.Controllers
                 SupplierId = dto.SupplierId,
                 MovementType = "STOCK_IN",
                 QuantityChange = dto.Quantity,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.StockMovements.Add(movement);
@@ -77,8 +96,8 @@ namespace SmartStock.API.Controllers
             });
         }
         ///////////////////////////////////////////////////////////////////////////
-       
 
+        [Authorize(Roles = "Admin")]
         [HttpPost("stock-out")]
         public async Task<IActionResult> StockOut(
             [FromBody] StockOutDto dto)
@@ -120,7 +139,7 @@ namespace SmartStock.API.Controllers
                 ProductId = selectedProduct.ProductId,
                 MovementType = "ADJUSTMENT",
                 QuantityChange = -dto.Quantity,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.StockMovements.Add(movement);
@@ -135,6 +154,52 @@ namespace SmartStock.API.Controllers
                 selectedProduct.StockOnHand,
                 movement.MovementId,
                 movement.QuantityChange
+            });
+        }
+        [HttpGet]
+        [Authorize(Roles = "Admin,Staff")]
+        public async Task<IActionResult> GetStockMovements(
+    [FromQuery] int? productId,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            if (page < 1 || pageSize < 1 || pageSize > 100)
+            {
+                return BadRequest(
+                    "Page must be at least 1 and pageSize must be between 1 and 100.");
+            }
+
+            var query = _context.StockMovements
+                .AsNoTracking()
+                .AsQueryable();
+
+            if (productId.HasValue && productId.Value <= 0)
+            {
+                return BadRequest("Product ID must be greater than zero.");
+            }
+
+            if (productId.HasValue)
+            {
+                query = query.Where(m => m.ProductId == productId.Value);
+            }
+
+            int totalRecords = await query.CountAsync();
+
+            var movements = await query
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.MovementId)
+                .Skip((int)Math.Min(((long)page - 1) * pageSize, int.MaxValue))
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                page,
+                pageSize,
+                totalRecords,
+                totalPages = (int)Math.Ceiling(
+                    (double)totalRecords / pageSize),
+                data = movements
             });
         }
 

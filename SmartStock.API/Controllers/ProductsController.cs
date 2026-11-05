@@ -3,11 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using SmartStock.Infrastructure.Data;
 using SmartStock.Application.DTOs;
 using SmartStock.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace SmartStock.API.Controllers
 {
     [ApiController]
     [Route("api/products")]
+    [Authorize]
     public class ProductsController : ControllerBase
     {
         private readonly SmartStockDbContext _context;
@@ -18,6 +21,7 @@ namespace SmartStock.API.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> GetProducts()
         {
             var products = await _context.Products
@@ -29,6 +33,7 @@ namespace SmartStock.API.Controllers
 
 
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> GetProductById(int id)
         {
             var product = await _context.Products
@@ -46,6 +51,7 @@ namespace SmartStock.API.Controllers
 
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateProduct(
             [FromBody] CreateProductDto dto)
         {
@@ -116,6 +122,7 @@ namespace SmartStock.API.Controllers
 
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateProduct(
     int id, [FromBody] UpdateProductDto dto)
         {
@@ -198,6 +205,7 @@ namespace SmartStock.API.Controllers
 
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
             var product = await _context.Products

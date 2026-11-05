@@ -57,6 +57,9 @@ builder.Services
 builder.Services.AddAuthorization();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+///
+
+
 
 var app = builder.Build();
 
@@ -75,12 +78,12 @@ using (var scope = app.Services.CreateScope())
 
     
 
-    foreach (var category in categories)
-    {
-        Console.WriteLine(
-            $"{category.CategoryId}: {category.CategoryName}"
-        );
-    }
+    //foreach (var category in categories)
+    //{
+    //    Console.WriteLine(
+    //        $"{category.CategoryId}: {category.CategoryName}"
+    //    );
+    //}
 }
 
 
