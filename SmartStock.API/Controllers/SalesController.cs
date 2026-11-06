@@ -3,11 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using SmartStock.Infrastructure.Data;
 using SmartStock.Application.DTOs;
 using SmartStock.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace SmartStock.API.Controllers
 {
     [ApiController]
     [Route("api/sales")]
+    [Authorize(Roles = "Admin,Staff")]
     public class SalesController : ControllerBase
     {
         private readonly SmartStockDbContext _context;
@@ -32,6 +35,13 @@ namespace SmartStock.API.Controllers
         public async Task<IActionResult> CreateSale(
     [FromBody] CreateSaleDto dto)
         {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(userIdClaim, out int authenticatedUserId))
+            {
+                return Unauthorized("Invalid user identity.");
+            }
+
             if (dto.Items == null || dto.Items.Count == 0)
             {
                 return BadRequest("A sale must contain at least one item.");
@@ -44,7 +54,9 @@ namespace SmartStock.API.Controllers
             }
 
             bool userExists = await _context.Users.AnyAsync(
-                u => u.UserId == dto.UserId && u.IsActive);
+                u => u.UserId == authenticatedUserId && u.IsActive
+            );
+                
 
             if (!userExists)
             {
@@ -124,7 +136,7 @@ namespace SmartStock.API.Controllers
 
                 var sale = new Sale
                 {
-                    UserId = dto.UserId,
+                    UserId = authenticatedUserId,
                     SoldAt = DateTime.Now,
                     TotalAmount = totalAmount,
                     Status = "COMPLETED"
@@ -164,7 +176,7 @@ namespace SmartStock.API.Controllers
                         SaleId = sale.SaleId,
                         MovementType = "SALE",
                         QuantityChange = -item.Quantity,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = DateTime.UtcNow
                     };
 
                     _context.StockMovements.Add(movement);

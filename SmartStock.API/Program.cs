@@ -67,23 +67,16 @@ app.UseAuthentication(); //identifies the user sending the request
 app.UseAuthorization(); //check user has permission or not
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
+
     var db = scope.ServiceProvider
         .GetRequiredService<SmartStockDbContext>();
 
     var categories = await db.Categories
         .AsNoTracking()
         .ToListAsync();
-
-    
-
-    //foreach (var category in categories)
-    //{
-    //    Console.WriteLine(
-    //        $"{category.CategoryId}: {category.CategoryName}"
-    //    );
-    //}
 }
 
 
@@ -101,3 +94,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
