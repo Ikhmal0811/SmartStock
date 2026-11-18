@@ -24,6 +24,9 @@ function Products({ token }) {
     const [editingProduct, setEditingProduct] = useState(null)
     const [stockInProduct, setStockInProduct] = useState(null)
     const [stockHistoryProduct, setStockHistoryProduct] = useState(null)
+    const [archiveProduct, setArchiveProduct] = useState(null)
+    const [archiving, setArchiving] = useState(false)
+    const [archiveError, setArchiveError] = useState('')
 
     //testing if token exist
     // console.log('Products received token:', Boolean(token))
@@ -175,6 +178,45 @@ function Products({ token }) {
         }
     }, [openMenuId])
 
+
+    const handleArchiveProduct = async () => {
+        if (!archiveProduct || !isAdmin || archiving) return
+
+        setArchiving(true)
+        setArchiveError('')
+
+        try {
+            const response = await fetch(
+                `/api/products/${archiveProduct.productId}/archive`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            )
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Session expired. Please log in again.')
+                }
+
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to archive products.')
+                }
+
+                const message = await response.text()
+                throw new Error(message || 'Failed to archive product.')
+            }
+
+            setArchiveProduct(null)
+            setRefreshKey((previous) => previous + 1)
+        } catch (error) {
+            setArchiveError(error.message)
+        } finally {
+            setArchiving(false)
+        }
+    }
 
 
     return (
@@ -541,7 +583,8 @@ function Products({ token }) {
                                                                 action !== 'View Details' &&
                                                                 !(action === 'Edit Product' && isAdmin) &&
                                                                 !(action === 'Stock In' && isAdmin) &&
-                                                                action !== 'Stock History'
+                                                                action !== 'Stock History' &&
+                                                                !(action === 'Archive Product' && isAdmin)
                                                             }
 
                                                             onClick={() => {
@@ -561,11 +604,15 @@ function Products({ token }) {
                                                                     setStockHistoryProduct(product)
                                                                 }
 
+                                                                if (action === 'Archive Product' && isAdmin) {
+                                                                    setArchiveProduct(product)
+                                                                }
+
                                                                 setOpenMenuId(null)
                                                             }}
 
 
-                                                            className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${action === 'View Details' || (action === 'Edit Product' && isAdmin) || (action === 'Stock In' && isAdmin) || action === 'Stock History'
+                                                            className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${action === 'View Details' || (action === 'Edit Product' && isAdmin) || (action === 'Stock In' && isAdmin) || action === 'Stock History' || (action === 'Archive Product' && isAdmin)
                                                                 ? 'cursor-pointer text-slate-700 hover:bg-slate-100'
                                                                 : action === 'Archive Product'
                                                                     ? 'cursor-not-allowed text-red-400'
@@ -679,6 +726,75 @@ function Products({ token }) {
                     token={token}
                     onClose={() => setStockHistoryProduct(null)}
                 />
+            )}
+
+            {isAdmin && archiveProduct && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !archiving) {
+                            setArchiveProduct(null)
+                            setArchiveError('')
+                        }
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="archive-title"
+                        className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+                    >
+                        <h2
+                            id="archive-title"
+                            className="text-xl font-bold text-slate-900"
+                        >
+                            Archive Product
+                        </h2>
+
+                        <p className="mt-3 text-sm text-slate-600">
+                            Are you sure you want to archive{' '}
+                            <strong>{archiveProduct.productName}</strong>?
+                        </p>
+
+                        <p className="mt-2 text-sm text-slate-500">
+                            This product will be hidden from your active inventory,
+                            but its historical records will be preserved.
+                        </p>
+
+
+
+                        <div className="mt-6 flex justify-end gap-3">
+
+                            {archiveError && (
+                                <p role="alert" className="mt-3 text-sm text-red-600">
+                                    {archiveError}
+                                </p>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setArchiveProduct(null)
+                                    setArchiveError('')
+                                }}
+                                className="rounded-full border border-slate-300 px-5 py-2.5 text-sm"
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleArchiveProduct}
+                                disabled={archiving}
+                                className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {archiving ? 'Archiving...' : 'Confirm Archive'}
+                            </button>
+
+
+                        </div>
+                    </div>
+                </div>
             )}
 
         </main>

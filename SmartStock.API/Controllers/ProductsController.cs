@@ -26,6 +26,7 @@ namespace SmartStock.API.Controllers
         {
             var products = await _context.Products
                 .AsNoTracking()
+                .Where(p => !p.IsArchived)
                 .ToListAsync();
 
             return Ok(products);
@@ -268,6 +269,84 @@ namespace SmartStock.API.Controllers
 
             return NoContent();
         }
+
+
+        [HttpPatch("{id}/archive")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ArchiveProduct(int id)
+        {
+            var product = await _context.Products
+                .FirstOrDefaultAsync(p => p.ProductId == id);
+
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            if (product.IsArchived)
+            {
+                return BadRequest("Product is already archived.");
+            }
+
+            product.IsArchived = true;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Product archived successfully.",
+                product.ProductId,
+                product.ProductName,
+                product.IsArchived
+            });
+        }
+
+        //archived products endpoint
+        [HttpGet("archived")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetArchivedProducts()
+        {
+            var products = await _context.Products
+                .AsNoTracking()
+                .Where(p => p.IsArchived)
+                .OrderBy(p => p.ProductName)
+                .ToListAsync();
+
+            return Ok(products);
+        }
+
+
+        //restore archived product
+        [HttpPatch("{id}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RestoreProduct(int id)
+        {
+            var product = await _context.Products
+                .FirstOrDefaultAsync(p => p.ProductId == id);
+
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            if (!product.IsArchived)
+            {
+                return BadRequest("Product is already active.");
+            }
+
+            product.IsArchived = false;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Product restored successfully.",
+                product.ProductId,
+                product.ProductName,
+                product.IsArchived
+            });
+        }
+
 
 
     }
