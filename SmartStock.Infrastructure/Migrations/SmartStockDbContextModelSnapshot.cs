@@ -67,6 +67,9 @@ namespace SmartStock.Infrastructure.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(150)

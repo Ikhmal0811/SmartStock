@@ -18,6 +18,8 @@ namespace SmartStock.Domain.Entities
         public decimal StockOnHand { get; set; }
         public decimal ReorderLevel { get; set; } = 10;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsArchived { get; set; } = false;
+
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

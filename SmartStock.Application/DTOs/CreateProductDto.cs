@@ -16,5 +16,6 @@ namespace SmartStock.Application.DTOs
         public decimal CostPrice { get; set; }
         public decimal StockOnHand { get; set; }
         public decimal ReorderLevel { get; set; } = 10;
+        public bool ConfirmDuplicate { get; set; } = false;
     }
 }

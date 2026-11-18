@@ -99,6 +99,30 @@ namespace SmartStock.API.Controllers
                 return Conflict("Product SKU already exists.");
             }
 
+            // Check for a possible duplicate product name
+            string productName = dto.ProductName.Trim();
+
+            var similarProduct = await _context.Products
+                .Where(p => p.ProductName.ToLower() == productName.ToLower())
+                .Select(p => new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.Sku,
+                    p.SellingPrice
+                })
+                .FirstOrDefaultAsync();
+
+            if (similarProduct != null && !dto.ConfirmDuplicate)
+            {
+                return Conflict(new
+                {
+                    code = "POSSIBLE_DUPLICATE",
+                    message = "A product with the same name already exists.",
+                    existingProduct = similarProduct
+                });
+            }
+
 
 
             var product = new Product

@@ -63,13 +63,15 @@ namespace SmartStock.API.Controllers
             if (product == null)
                 return NotFound("Product not found.");
 
+            // Validate before increasing inventory
+            if (product.StockOnHand > 999999999.999m - dto.Quantity)
+            {
+                return BadRequest(
+                    "Stock quantity exceeds the maximum allowed value.");
+            }
+
             // Increase inventory
             product.StockOnHand += dto.Quantity;
-
-            if (product.StockOnHand + dto.Quantity > 999999999.999m)
-            {
-                return BadRequest("Stock quantity exceeds the maximum allowed value.");
-            }
 
             // Record stock movement
             var movement = new StockMovement
