@@ -20,7 +20,7 @@ namespace SmartStock.API.Controllers
             _context = context;
         }
 
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize(Roles = "Admin")]
         [HttpPost("stock-in")]
         public async Task<IActionResult> StockIn([FromBody] StockInDto dto)
         {
@@ -31,6 +31,15 @@ namespace SmartStock.API.Controllers
             if (dto.ProductId <= 0)
             {
                 return BadRequest("Product ID must be greater than zero.");
+            }
+
+            var reference = string.IsNullOrWhiteSpace(dto.Reference)
+                ? null
+                : dto.Reference.Trim();
+
+            if (reference?.Length > 100)
+            {
+                return BadRequest("Reference must be 100 characters or fewer.");
             }
 
             // Validate optional supplier
@@ -63,6 +72,9 @@ namespace SmartStock.API.Controllers
             if (product == null)
                 return NotFound("Product not found.");
 
+            if (product.IsArchived)
+                return BadRequest("Archived products cannot be stocked in.");
+
             // Validate before increasing inventory
             if (product.StockOnHand > 999999999.999m - dto.Quantity)
             {
@@ -80,6 +92,7 @@ namespace SmartStock.API.Controllers
                 SupplierId = dto.SupplierId,
                 MovementType = "STOCK_IN",
                 QuantityChange = dto.Quantity,
+                Reference = reference,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -109,6 +122,18 @@ namespace SmartStock.API.Controllers
                 return BadRequest("Invalid product ID or quantity.");
             }
 
+            var reason = dto.Reason?.Trim();
+
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return BadRequest("A reason is required for Stock Out.");
+            }
+
+            if (reason.Length > 200)
+            {
+                return BadRequest("Reason must be 200 characters or fewer.");
+            }
+
             // Begin transaction
             await using var transaction =
                 await _context.Database.BeginTransactionAsync();
@@ -126,6 +151,11 @@ namespace SmartStock.API.Controllers
                 return NotFound("Product not found.");
             }
 
+            if (selectedProduct.IsArchived)
+            {
+                return BadRequest("Archived products cannot be stocked out.");
+            }
+
             // Prevent negative stock
             if (selectedProduct.StockOnHand < dto.Quantity)
             {
@@ -141,6 +171,7 @@ namespace SmartStock.API.Controllers
                 ProductId = selectedProduct.ProductId,
                 MovementType = "ADJUSTMENT",
                 QuantityChange = -dto.Quantity,
+                Reason = reason,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -155,13 +186,16 @@ namespace SmartStock.API.Controllers
                 selectedProduct.ProductName,
                 selectedProduct.StockOnHand,
                 movement.MovementId,
-                movement.QuantityChange
+                movement.QuantityChange,
+                movement.Reason
             });
         }
         [HttpGet]
         [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> GetStockMovements(
     [FromQuery] int? productId,
+    [FromQuery] string? movementType,
+    [FromQuery] DateTime? fromDate,
     [FromQuery] int page = 1,
     [FromQuery] int pageSize = 10)
         {
@@ -174,6 +208,28 @@ namespace SmartStock.API.Controllers
             var query = _context.StockMovements
                 .AsNoTracking()
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(movementType))
+            {
+                var normalizedType = movementType.Trim().ToUpperInvariant();
+                var allowedTypes = new[] { "STOCK_IN", "SALE", "ADJUSTMENT" };
+
+                if (!allowedTypes.Contains(normalizedType))
+                {
+                    return BadRequest("Unsupported movement type.");
+                }
+
+                query = query.Where(m => m.MovementType == normalizedType);
+            }
+
+            if (fromDate.HasValue)
+            {
+                var from = fromDate.Value.Kind == DateTimeKind.Utc
+                    ? fromDate.Value
+                    : DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);
+
+                query = query.Where(m => m.CreatedAt >= from);
+            }
 
             if (productId.HasValue && productId.Value <= 0)
             {

@@ -5,6 +5,7 @@ using SmartStock.Application.DTOs;
 using SmartStock.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using SmartStock.API.Helpers;
 
 namespace SmartStock.API.Controllers
 {
@@ -89,6 +90,12 @@ namespace SmartStock.API.Controllers
                     {
                         return NotFound($"Product {productId} not found.");
                     }
+
+                    if (products[0].IsArchived)
+                    {
+                        return BadRequest(
+                            $"Archived product {productId} cannot be sold.");
+                    }
                 }
 
                 
@@ -123,14 +130,12 @@ namespace SmartStock.API.Controllers
                 //calculate the total payment for customer
                 decimal totalAmount = 0;
 
-                foreach (var item in dto.Items)
+                foreach (var entry in requestedQuantities)
                 {
                     var product = _context.Products.Local
-                        .First(p => p.ProductId == item.ProductId);
+                        .First(p => p.ProductId == entry.Key);
 
-                    decimal subtotal = product.SellingPrice * item.Quantity;
-
-                    totalAmount += subtotal;
+                    totalAmount += product.SellingPrice * entry.Value;
                 }
 
 
@@ -149,17 +154,17 @@ namespace SmartStock.API.Controllers
 
 
                 // update the records
-                foreach (var item in dto.Items)
+                foreach (var entry in requestedQuantities)
                 {
                     var product = _context.Products.Local
-                        .First(p => p.ProductId == item.ProductId);
+                        .First(p => p.ProductId == entry.Key);
 
                     // Record the purchased product
                     var saleItem = new SaleItem
                     {
                         SaleId = sale.SaleId,
                         ProductId = product.ProductId,
-                        Quantity = item.Quantity,
+                        Quantity = entry.Value,
                         UnitPrice = product.SellingPrice,
                         UnitCost = product.CostPrice
                     };
@@ -167,7 +172,7 @@ namespace SmartStock.API.Controllers
                     _context.SaleItems.Add(saleItem);
 
                     // Deduct inventory
-                    product.StockOnHand -= item.Quantity;
+                    product.StockOnHand -= entry.Value;
 
                     // Record why inventory decreased
                     var movement = new StockMovement
@@ -175,7 +180,7 @@ namespace SmartStock.API.Controllers
                         ProductId = product.ProductId,
                         SaleId = sale.SaleId,
                         MovementType = "SALE",
-                        QuantityChange = -item.Quantity,
+                        QuantityChange = -entry.Value,
                         CreatedAt = DateTime.UtcNow
                     };
 
@@ -208,6 +213,54 @@ namespace SmartStock.API.Controllers
                 throw;
             }
 
+        }
+
+
+        // Read-only dashboard aggregation. The client supplies the exact
+        // Asia/Kuala_Lumpur calendar window used by the revenue chart so both
+        // sections share one definition of "Last 7 Days".
+        [HttpGet("top-products")]
+        public async Task<IActionResult> GetTopProducts(
+            [FromQuery] string start,
+            [FromQuery] string end)
+        {
+            if (!SalesDateWindow.TryCreate(
+                    start,
+                    end,
+                    out var window,
+                    out var error))
+            {
+                return BadRequest(error);
+            }
+
+            var windowStart = window!.Start;
+            var windowEnd = window.EndExclusive;
+
+            var topProducts = await (
+                from sale in _context.Sales.AsNoTracking()
+                join item in _context.SaleItems.AsNoTracking()
+                    on sale.SaleId equals item.SaleId
+                join product in _context.Products.AsNoTracking()
+                    on item.ProductId equals product.ProductId
+                where sale.SoldAt >= windowStart && sale.SoldAt < windowEnd
+                group new { item, product } by new
+                {
+                    product.ProductId,
+                    product.ProductName
+                } into grouped
+                select new
+                {
+                    productId = grouped.Key.ProductId,
+                    productName = grouped.Key.ProductName,
+                    quantity = grouped.Sum(x => x.item.Quantity)
+                }
+            )
+            .OrderByDescending(x => x.quantity)
+            .ThenBy(x => x.productName)
+            .Take(5)
+            .ToListAsync();
+
+            return Ok(topProducts);
         }
 
 

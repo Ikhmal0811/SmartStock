@@ -4,6 +4,7 @@ import { X, PackagePlus } from 'lucide-react'
 function StockInModal({ product, token, onClose, onSuccess }) {
     const [quantity, setQuantity] = useState('')
     const [supplierId, setSupplierId] = useState('')
+    const [reference, setReference] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -11,6 +12,10 @@ function StockInModal({ product, token, onClose, onSuccess }) {
     //sends selected product ID, incoming quantity & opitonal supplier ID to backend
     const handleSubmit = async (e) => {
         e.preventDefault()
+
+        if (loading) {
+            return
+        }
 
         setError('')
         setLoading(true)
@@ -28,6 +33,7 @@ function StockInModal({ product, token, onClose, onSuccess }) {
                     supplierId: supplierId.trim()
                         ? Number(supplierId)
                         : null,
+                    reference: reference.trim() || null,
                 }),
             })
 
@@ -48,6 +54,7 @@ function StockInModal({ product, token, onClose, onSuccess }) {
             alert('Stock added successfully!')
             onSuccess()
             onClose()
+
         } catch (err) {
             console.error('Stock In failed:', err)
             setError('Unable to connect to the server.')
@@ -60,7 +67,7 @@ function StockInModal({ product, token, onClose, onSuccess }) {
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
             onClick={(e) => {
-                if (e.target === e.currentTarget) {
+                if (e.target === e.currentTarget && !loading) {
                     onClose()
                 }
             }}
@@ -82,8 +89,9 @@ function StockInModal({ product, token, onClose, onSuccess }) {
                     <button
                         type="button"
                         onClick={onClose}
+                        disabled={loading}
                         aria-label="Close Stock In"
-                        className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                        className="rounded-full p-2 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <X size={20} />
                     </button>
@@ -143,6 +151,26 @@ function StockInModal({ product, token, onClose, onSuccess }) {
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-400"
                         />
                     </div>
+
+                    <div>
+                        <label
+                            htmlFor="stock-in-reference"
+                            className="mb-1 block text-sm font-medium text-slate-700"
+                        >
+                            Reference (Optional)
+                        </label>
+
+                        <input
+                            id="stock-in-reference"
+                            type="text"
+                            maxLength={100}
+                            value={reference}
+                            onChange={(e) => setReference(e.target.value)}
+                            placeholder="Example: PO-2026-001"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-indigo-400"
+                        />
+                    </div>
+
                     {error && (
                             <p role="alert" className="text-sm text-red-600">
                                 {error}
@@ -156,7 +184,8 @@ function StockInModal({ product, token, onClose, onSuccess }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-full border border-slate-300 px-5 py-2.5 text-sm text-slate-700 hover:bg-slate-100"
+                            disabled={loading}
+                            className="rounded-full border border-slate-300 px-5 py-2.5 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             Cancel
                         </button>

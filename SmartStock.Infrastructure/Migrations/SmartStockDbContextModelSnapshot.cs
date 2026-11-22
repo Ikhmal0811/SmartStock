@@ -251,6 +251,14 @@ namespace SmartStock.Infrastructure.Migrations
                         .HasColumnType("numeric(12,3)")
                         .HasColumnName("quantity_change");
 
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
                     b.Property<int?>("SaleId")
                         .HasColumnType("integer")
                         .HasColumnName("sale_id");

@@ -20,3 +20,29 @@ obj/
 # User-specific Visual Studio settings
 *.csproj.user
 *.suo
+
+# Test and coverage outputs
+TestResults/
+coverage/
+*.trx
+
+# Logs and temporary files
+logs/
+*.log
+temp/
+tmp/
+*.tmp
+*.temp
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Keys and certificates
+*.pfx
+*.p12
+*.key
+*.pem

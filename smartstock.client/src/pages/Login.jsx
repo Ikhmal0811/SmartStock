@@ -53,10 +53,11 @@ function Login({ onLogin }) {
 
             setIsError(false)
             setMessage('Login successful!')
+
             navigate('/dashboard', { replace: true })
 
 
-        } catch (error) {
+        } catch {
             console.error('Unable to connect to the API.')
             setIsError(true)
             setMessage('Unable to connect to the server.')

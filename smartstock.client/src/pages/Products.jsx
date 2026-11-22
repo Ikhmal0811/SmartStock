@@ -1,12 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import AddProduct from '../components/AddProduct'
-import { jwtDecode } from 'jwt-decode'
-import { Search, ListFilter } from 'lucide-react'
-import { MoreVertical } from 'lucide-react'
+import { Search, ListFilter, Archive, MoreVertical } from 'lucide-react'
 import ProductDetails from '../components/ProductDetails'
 import EditProduct from '../components/EditProduct'
 import StockInModal from '../components/StockInModal'
 import StockHistoryModal from '../components/StockHistoryModal'
+import ArchivedProductsModal from '../components/ArchivedProductsModal'
+import { getDashboardRole } from '../utils/dashboardPermissions'
 
 function Products({ token }) {
     const [products, setProducts] = useState([])
@@ -27,13 +27,16 @@ function Products({ token }) {
     const [archiveProduct, setArchiveProduct] = useState(null)
     const [archiving, setArchiving] = useState(false)
     const [archiveError, setArchiveError] = useState('')
+    const [showArchivedProducts, setShowArchivedProducts] = useState(false)
 
-    //testing if token exist
-    // console.log('Products received token:', Boolean(token))
+
     useEffect(() => {
         const controller = new AbortController()
 
         const loadProducts = async () => {
+            setLoading(true)
+            setError('')
+
             try {
                 const response = await fetch('/api/products', {
                     headers: {
@@ -124,13 +127,7 @@ function Products({ token }) {
         (product) => product.stockOnHand === 0
     ).length
 
-    const decodedToken = token ? jwtDecode(token) : null
-
-    const role =
-        decodedToken?.role ??
-        decodedToken?.[
-        'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
-        ]
+    const role = getDashboardRole(token)
 
     //set the admin role
     const isAdmin = role === 'Admin'
@@ -222,7 +219,7 @@ function Products({ token }) {
     return (
         <main className="min-w-0 flex-1 p-8">
 
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                         Products & Inventory Catalog
@@ -234,20 +231,36 @@ function Products({ token }) {
                     </p>
                 </div>
 
-                {isAdmin && (
-                    <button
-                        type="button"
-                        onClick={() => setShowAddForm(true)}
-                        className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full bg-[#1F3046] px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#2B405B] sm:self-auto"
-                    >
-                        <span className="text-lg leading-none">+</span>
-                        <span>New Product</span>
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
 
-                        <span className="rounded-full bg-[#344D70] px-2 py-0.5 text-[10px] text-blue-100">
-                            ADMIN ONLY
-                        </span>
-                    </button>
-                )}
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={() => setShowAddForm(true)}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full bg-[#1F3046] px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-[#2B405B] sm:self-auto"
+                        >
+                            <span className="text-lg leading-none">+</span>
+                            <span>New Product</span>
+
+                            <span className="rounded-full bg-[#344D70] px-2 py-0.5 text-[10px] text-blue-100">
+                                ADMIN ONLY
+                            </span>
+                        </button>
+                    )}
+
+                    {isAdmin && (
+                        <button
+                            type="button"
+                            onClick={() => setShowArchivedProducts(true)}
+                            className="flex h-11 w-full shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:w-48"
+                        >
+                            <Archive size={16} />
+                            View Archived
+                        </button>
+                    )}
+
+                </div>
+
             </div>
 
 
@@ -440,13 +453,34 @@ function Products({ token }) {
 
             </div>
 
-            {loading && <p className="mt-6">Loading products...</p>}
+            {loading && (
+                <div
+                    role="status"
+                    className="mt-6 rounded-xl bg-blue-50 p-4 text-center text-sm font-medium text-blue-700"
+                >
+                    Loading products...
+                </div>
+            )}
 
             {error && (
-                <p className="mt-6 text-red-600" role="alert">
-                    {error}
-                </p>
+                <div
+                    role="alert"
+                    className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5"
+                >
+                    <p className="text-sm font-medium text-red-700">
+                        Failed to load products: {error}
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() => setRefreshKey((prev) => prev + 1)}
+                        className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                    >
+                        Try Again
+                    </button>
+                </div>
             )}
+
 
             {!loading && !error && (
                 <div className="overflow-x-auto rounded-3xl border border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
@@ -639,7 +673,7 @@ function Products({ token }) {
                         </p>
                     )}
 
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/80 px-5 py-3 shadow-sm">
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/80 px-3 py-3 shadow-sm sm:gap-4 sm:px-5">
 
                         <div className="flex items-center gap-3">
                             <span className="text-sm text-slate-600">
@@ -795,6 +829,14 @@ function Products({ token }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isAdmin && showArchivedProducts && (
+                <ArchivedProductsModal
+                    token={token}
+                    onClose={() => setShowArchivedProducts(false)}
+                    onSuccess={() => setRefreshKey((previous) => previous + 1)}
+                />
             )}
 
         </main>

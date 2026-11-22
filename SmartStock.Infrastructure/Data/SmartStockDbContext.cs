@@ -307,6 +307,10 @@ namespace SmartStock.Infrastructure.Data
                       .HasColumnName("quantity_change")
                       .HasPrecision(12, 3);
 
+                entity.Property(e => e.Reason)
+                      .HasColumnName("reason")
+                      .HasMaxLength(200);
+
                 entity.Property(e => e.CreatedAt)
                   .HasColumnName("created_at")
                   .HasColumnType("timestamp with time zone")

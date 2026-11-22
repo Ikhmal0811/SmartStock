@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.ComponentModel.DataAnnotations;
 
 namespace SmartStock.Application.DTOs
@@ -15,5 +13,8 @@ namespace SmartStock.Application.DTOs
 
         [Range(typeof(decimal), "0.001", "999999999.999")]
         public decimal Quantity { get; set; }
+
+        [StringLength(100)]
+        public string? Reference { get; set; }
     }
 }

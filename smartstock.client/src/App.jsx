@@ -4,6 +4,8 @@ import { Routes, Route, Navigate } from 'react-router'
 import Dashboard from './pages/Dashboard'
 import Products from './pages/Products'
 import MainLayout from './components/MainLayout'
+import StockManagement from './pages/StockManagement'
+import Sales from './pages/Sales'
 
 function App() {
    const [token, setToken] = useState(null)
@@ -11,11 +13,10 @@ function App() {
    const handleLogout = () => {
       setToken(null)
    }
-   console.log('App has token:', Boolean(token))
 
    return (
       <Routes>
-         
+
          <Route path="/" element={<Navigate to="/login" replace />} />
 
 
@@ -38,13 +39,28 @@ function App() {
             }
          >
 
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+               path="/dashboard"
+               element={<Dashboard token={token} />}
+            />
             <Route
                path="/products"
                element={<Products token={token} />}
             />
 
+            <Route
+               path="/stock"
+               element={<StockManagement token={token} />}
+            />
+
+            <Route
+               path="/sales"
+               element={<Sales token={token} />}
+            />
+
          </Route>
+
+
 
 
 

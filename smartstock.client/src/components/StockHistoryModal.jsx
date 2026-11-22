@@ -8,6 +8,17 @@ function StockHistoryModal({ product, token, onClose }) {
     const [totalRecords, setTotalRecords] = useState(0)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [movementFilter, setMovementFilter] = useState('all')
+    const [dateFilter, setDateFilter] = useState('all')
+
+    const getMovementLabel = (movementType) => {
+        if (movementType === 'STOCK_IN') return 'Stock In'
+        if (movementType === 'SALE') return 'Sale'
+        if (movementType === 'ADJUSTMENT') return 'Adjustment'
+        return movementType || 'Movement'
+    }
+
+    const hasFilters = movementFilter !== 'all' || dateFilter !== 'all'
 
 
     //fetches selected product stock history from backend when modal opens
@@ -20,15 +31,41 @@ function StockHistoryModal({ product, token, onClose }) {
             setError('')
 
             try {
+                const params = new URLSearchParams({
+                    productId: String(product.productId),
+                    page: String(currentPage),
+                    pageSize: '10',
+                })
+
+                if (movementFilter !== 'all') {
+                    params.set('movementType', movementFilter)
+                }
+
+                if (dateFilter !== 'all') {
+                    const days = Number(dateFilter)
+                    params.set(
+                        'fromDate',
+                        new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+                    )
+                }
+
                 const response = await fetch(
-                    `/api/stock-movements?productId=${product.productId}&page=${currentPage}&pageSize=10`,
-                {
+                    `/api/stock-movements?${params.toString()}`,
+                    {
                         headers: {
                             Authorization: `Bearer ${token}`,
                         },
                         signal: controller.signal,
                     }
                 )
+
+                if (response.status === 401) {
+                    throw new Error('Session expired. Please log in again.')
+                }
+
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to view stock history.')
+                }
 
                 if (!response.ok) {
                     throw new Error(`Unable to load history (${response.status})`)
@@ -52,7 +89,7 @@ function StockHistoryModal({ product, token, onClose }) {
         loadHistory()
 
         return () => controller.abort()
-    }, [product.productId, token, currentPage])
+    }, [product.productId, token, currentPage, movementFilter, dateFilter])
 
     return (
         <div
@@ -97,6 +134,55 @@ function StockHistoryModal({ product, token, onClose }) {
                     </p>
                 </div>
 
+                <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label
+                            htmlFor="movement-type-filter"
+                            className="mb-1 block text-xs font-medium text-slate-600"
+                        >
+                            Movement Type
+                        </label>
+
+                        <select
+                            id="movement-type-filter"
+                            value={movementFilter}
+                            onChange={(e) => {
+                                setMovementFilter(e.target.value)
+                                setCurrentPage(1)
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-indigo-400"
+                        >
+                            <option value="all">All movements</option>
+                            <option value="STOCK_IN">Stock In</option>
+                            <option value="SALE">Sale</option>
+                            <option value="ADJUSTMENT">Adjustment</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label
+                            htmlFor="movement-date-filter"
+                            className="mb-1 block text-xs font-medium text-slate-600"
+                        >
+                            Date Range
+                        </label>
+
+                        <select
+                            id="movement-date-filter"
+                            value={dateFilter}
+                            onChange={(e) => {
+                                setDateFilter(e.target.value)
+                                setCurrentPage(1)
+                            }}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-indigo-400"
+                        >
+                            <option value="all">All dates</option>
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                        </select>
+                    </div>
+                </div>
+
                 {loading && (
                     <p className="text-sm text-slate-500">
                         Loading stock history...
@@ -110,9 +196,11 @@ function StockHistoryModal({ product, token, onClose }) {
                 )}
 
                 {!loading && !error && movements.length === 0 && (
-                    <p className="text-sm text-slate-500">
-                        No stock movements recorded for this product.
-                    </p>
+                    <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                        {hasFilters
+                            ? 'No stock movements match the selected filters.'
+                            : 'No stock movements recorded for this product.'}
+                    </div>
                 )}
 
                 {!loading && !error && movements.length > 0 && (
@@ -123,6 +211,7 @@ function StockHistoryModal({ product, token, onClose }) {
                                     <th className="p-3">Movement</th>
                                     <th className="p-3">Quantity</th>
                                     <th className="p-3">Date</th>
+                                    <th className="p-3">Details</th>
                                 </tr>
                             </thead>
 
@@ -133,11 +222,7 @@ function StockHistoryModal({ product, token, onClose }) {
                                         className="border-t border-slate-100"
                                     >
                                         <td className="p-3">
-                                            {movement.movementType === 'STOCK_IN'
-                                                ? 'Stock In'
-                                                : movement.movementType === 'SALE'
-                                                    ? 'Sale'
-                                                    : 'Adjustment'}
+                                            {getMovementLabel(movement.movementType)}
                                         </td>
 
                                         <td
@@ -153,6 +238,39 @@ function StockHistoryModal({ product, token, onClose }) {
                                         <td className="p-3 text-slate-600">
                                             {new Date(movement.createdAt).toLocaleString('en-MY')}
                                         </td>
+
+                                        <td className="p-3 text-xs text-slate-500">
+                                            {movement.reason && (
+                                                <p className="text-slate-700">
+                                                    {movement.reason}
+                                                </p>
+                                            )}
+
+                                            {movement.saleId && (
+                                                <p className="mt-1">
+                                                    Sale #{movement.saleId}
+                                                </p>
+                                            )}
+
+                                            {movement.supplierId && (
+                                                <p className="mt-1">
+                                                    Supplier #{movement.supplierId}
+                                                </p>
+                                            )}
+
+                                            {movement.reference && (
+                                                <p className="mt-1">
+                                                    Ref: {movement.reference}
+                                                </p>
+                                            )}
+
+                                            {!movement.reason &&
+                                                !movement.saleId &&
+                                                !movement.supplierId &&
+                                                !movement.reference && (
+                                                    <span className="text-slate-300">—</span>
+                                                )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -167,7 +285,7 @@ function StockHistoryModal({ product, token, onClose }) {
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
-                                        disabled={currentPage === 1}
+                                        disabled={loading || currentPage === 1}
                                         onClick={() => setCurrentPage((prev) => prev - 1)}
                                         className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
@@ -176,7 +294,7 @@ function StockHistoryModal({ product, token, onClose }) {
 
                                     <button
                                         type="button"
-                                        disabled={currentPage >= totalPages}
+                                        disabled={loading || currentPage >= totalPages}
                                         onClick={() => setCurrentPage((prev) => prev + 1)}
                                         className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                                     >

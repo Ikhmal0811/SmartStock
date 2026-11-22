@@ -14,6 +14,8 @@ namespace SmartStock.Domain.Entities
 
         public string MovementType { get; set; } = string.Empty;
         public decimal QuantityChange { get; set; }
+        public string? Reason { get; set; }
+        public string? Reference { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
